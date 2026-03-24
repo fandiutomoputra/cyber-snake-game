@@ -116,7 +116,7 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📞 Support
 - **GitHub Issues**: [Report bugs or request features](https://github.com/fandiutomoputra/cyber-snake-game/issues)
-- **Telegram**: @hokisetahun (Kiko)
+- **Telegram**: @Mevi_Mbot (Mevi)
 
 ---
 
