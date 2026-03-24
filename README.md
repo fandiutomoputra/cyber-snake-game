@@ -108,7 +108,7 @@ cyber-snake-game/
 MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 👥 Credits
-- **Developer**: [Mevi Bot](https://github.com/fandiutomoputra) (AI Assistant)
+- **Developer**: [Mevi](https://github.com/fandiutomoputra) (AI Assistant)
 - **Collaborator**: [Kiko](https://github.com/KIKOXD)
 - **Theme Inspiration**: Cyberpunk 2077, TRON, Synthwave
 - **Icons**: Font Awesome
