@@ -33,6 +33,14 @@ class CyberSnakeGame {
         this.highScore = localStorage.getItem('cyberSnakeHighScore') || 0;
         this.level = 1;
         
+        // Audio
+        this.audio = null;
+        this.audioEnabled = true;
+        
+        // Effects
+        this.effects = null;
+        this.effectsEnabled = true;
+        
         // Initialize
         this.init();
     }
@@ -45,11 +53,37 @@ class CyberSnakeGame {
         // Load high score
         this.updateHighScoreDisplay();
         
+        // Initialize audio
+        this.initAudio();
+        
+        // Initialize effects
+        this.initEffects();
+        
         // Event Listeners
         this.setupEventListeners();
         
         // Start game loop
         requestAnimationFrame(this.gameLoop.bind(this));
+    }
+    
+    initAudio() {
+        try {
+            this.audio = new CyberAudio();
+            this.audioEnabled = true;
+        } catch (error) {
+            console.warn('Audio initialization failed:', error);
+            this.audioEnabled = false;
+        }
+    }
+    
+    initEffects() {
+        try {
+            this.effects = new CyberEffects(this.canvas);
+            this.effectsEnabled = true;
+        } catch (error) {
+            console.warn('Effects initialization failed:', error);
+            this.effectsEnabled = false;
+        }
     }
     
     setupEventListeners() {
@@ -200,6 +234,11 @@ class CyberSnakeGame {
             this.score += 10 * this.level;
             this.updateScoreDisplay();
             
+            // Play food sound
+            if (this.audioEnabled && this.audio) {
+                this.audio.playFoodSound();
+            }
+            
             // Generate new food
             this.generateFood();
             
@@ -208,6 +247,23 @@ class CyberSnakeGame {
                 this.level++;
                 this.snakeSpeed += 1; // Increase speed
                 this.updateLevelDisplay();
+                
+                // Play level up sound
+                if (this.audioEnabled && this.audio) {
+                    this.audio.playLevelUpSound();
+                }
+                
+                // Create level up particles
+                if (this.effectsEnabled && this.effects) {
+                    this.effects.createLevelUpParticles();
+                }
+            }
+            
+            // Create food particles
+            if (this.effectsEnabled && this.effects) {
+                const foodX = this.food.x * this.gridSize + this.gridSize / 2;
+                const foodY = this.food.y * this.gridSize + this.gridSize / 2;
+                this.effects.createFoodParticles(foodX, foodY, '#ff00ff');
             }
         } else {
             // Remove tail if no food eaten
@@ -219,6 +275,12 @@ class CyberSnakeGame {
         // Clear canvas
         this.ctx.fillStyle = 'rgba(5, 5, 16, 0.9)';
         this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        
+        // Update and render effects
+        if (this.effectsEnabled && this.effects) {
+            this.effects.update();
+            this.effects.render();
+        }
         
         // Draw grid (cyberpunk style)
         this.drawGrid();
@@ -395,8 +457,11 @@ class CyberSnakeGame {
     }
     
     toggleMusic() {
-        // Placeholder for audio functionality
-        console.log('Music toggle - to be implemented');
+        if (this.audio) {
+            this.audioEnabled = this.audio.toggle();
+            return this.audioEnabled;
+        }
+        return false;
     }
     
     updateScoreDisplay() {
@@ -426,6 +491,11 @@ class CyberSnakeGame {
         document.getElementById('finalScore').textContent = this.score.toString().padStart(4, '0');
         document.getElementById('finalLevel').textContent = this.level.toString().padStart(2, '0');
         document.getElementById('gameOverModal').style.display = 'flex';
+        
+        // Play game over sound
+        if (this.audioEnabled && this.audio) {
+            this.audio.playGameOverSound();
+        }
     }
     
     hideGameOver() {
