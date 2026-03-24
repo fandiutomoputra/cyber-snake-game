@@ -208,16 +208,18 @@ class CyberSnakeGame {
         head.x += this.direction.x;
         head.y += this.direction.y;
         
-        // Check wall collision
-        if (head.x < 0 || head.x >= this.canvas.width / this.gridSize ||
-            head.y < 0 || head.y >= this.canvas.height / this.gridSize) {
-            this.gameOver = true;
-            this.showGameOver();
-            return;
-        }
+        // Wall wrapping (teleport to opposite side)
+        const gridWidth = this.canvas.width / this.gridSize;
+        const gridHeight = this.canvas.height / this.gridSize;
         
-        // Check self collision
-        for (let segment of this.snake) {
+        if (head.x < 0) head.x = gridWidth - 1;
+        if (head.x >= gridWidth) head.x = 0;
+        if (head.y < 0) head.y = gridHeight - 1;
+        if (head.y >= gridHeight) head.y = 0;
+        
+        // Check self collision (skip head itself)
+        for (let i = 1; i < this.snake.length; i++) {
+            const segment = this.snake[i];
             if (head.x === segment.x && head.y === segment.y) {
                 this.gameOver = true;
                 this.showGameOver();
@@ -317,35 +319,186 @@ class CyberSnakeGame {
     }
     
     drawSnake() {
-        // Draw snake body
+        // Draw snake body with realistic snake shape
         for (let i = 0; i < this.snake.length; i++) {
             const segment = this.snake[i];
+            const nextSegment = this.snake[i + 1];
+            const prevSegment = this.snake[i - 1];
             
-            // Head (different color)
-            if (i === 0) {
-                this.ctx.fillStyle = '#00f3ff'; // Neon blue head
-                this.ctx.shadowBlur = 15;
-                this.ctx.shadowColor = '#00f3ff';
-            } else {
-                // Body gradient (head to tail)
-                const intensity = 1 - (i / this.snake.length) * 0.7;
-                this.ctx.fillStyle = `rgba(0, 102, 255, ${intensity})`; // Cyber blue
-                this.ctx.shadowBlur = 10;
-                this.ctx.shadowColor = '#0066ff';
-            }
-            
-            // Draw segment with rounded corners
+            // Calculate segment position
             const x = segment.x * this.gridSize;
             const y = segment.y * this.gridSize;
-            const radius = this.gridSize / 2;
+            const size = this.gridSize;
             
-            this.ctx.beginPath();
-            this.ctx.roundRect(x, y, this.gridSize, this.gridSize, radius);
-            this.ctx.fill();
-            
-            // Reset shadow
-            this.ctx.shadowBlur = 0;
+            // Head (special styling)
+            if (i === 0) {
+                this.drawSnakeHead(x, y, size, segment, nextSegment);
+            } 
+            // Body segments
+            else if (i < this.snake.length - 1) {
+                this.drawSnakeBody(x, y, size, segment, prevSegment, nextSegment, i);
+            }
+            // Tail (last segment)
+            else {
+                this.drawSnakeTail(x, y, size, segment, prevSegment);
+            }
         }
+    }
+    
+    drawSnakeHead(x, y, size, head, nextSegment) {
+        this.ctx.save();
+        
+        // Head color with glow
+        this.ctx.fillStyle = '#00f3ff';
+        this.ctx.shadowBlur = 20;
+        this.ctx.shadowColor = '#00f3ff';
+        
+        // Draw head (oval shape)
+        this.ctx.beginPath();
+        this.ctx.ellipse(
+            x + size/2, 
+            y + size/2, 
+            size/2, 
+            size/1.5, 
+            0, 0, Math.PI * 2
+        );
+        this.ctx.fill();
+        
+        // Eyes
+        this.ctx.fillStyle = '#ffffff';
+        this.ctx.shadowBlur = 5;
+        this.ctx.shadowColor = '#ffffff';
+        
+        // Determine eye positions based on direction
+        const eyeSize = size / 6;
+        let eye1X, eye1Y, eye2X, eye2Y;
+        
+        if (this.direction.x === 1) { // Right
+            eye1X = x + size - eyeSize * 1.5;
+            eye1Y = y + size/3;
+            eye2X = x + size - eyeSize * 1.5;
+            eye2Y = y + 2*size/3;
+        } else if (this.direction.x === -1) { // Left
+            eye1X = x + eyeSize * 1.5;
+            eye1Y = y + size/3;
+            eye2X = x + eyeSize * 1.5;
+            eye2Y = y + 2*size/3;
+        } else if (this.direction.y === 1) { // Down
+            eye1X = x + size/3;
+            eye1Y = y + size - eyeSize * 1.5;
+            eye2X = x + 2*size/3;
+            eye2Y = y + size - eyeSize * 1.5;
+        } else { // Up
+            eye1X = x + size/3;
+            eye1Y = y + eyeSize * 1.5;
+            eye2X = x + 2*size/3;
+            eye2Y = y + eyeSize * 1.5;
+        }
+        
+        // Draw eyes
+        this.ctx.beginPath();
+        this.ctx.arc(eye1X, eye1Y, eyeSize, 0, Math.PI * 2);
+        this.ctx.arc(eye2X, eye2Y, eyeSize, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Pupils
+        this.ctx.fillStyle = '#000000';
+        this.ctx.shadowBlur = 0;
+        this.ctx.beginPath();
+        this.ctx.arc(eye1X, eye1Y, eyeSize/2, 0, Math.PI * 2);
+        this.ctx.arc(eye2X, eye2Y, eyeSize/2, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        this.ctx.restore();
+    }
+    
+    drawSnakeBody(x, y, size, segment, prevSegment, nextSegment, index) {
+        this.ctx.save();
+        
+        // Body color with gradient (darker towards tail)
+        const intensity = 1 - (index / this.snake.length) * 0.5;
+        const r = Math.floor(0 * intensity);
+        const g = Math.floor(102 * intensity);
+        const b = Math.floor(255 * intensity);
+        
+        this.ctx.fillStyle = `rgb(${r}, ${g}, ${b})`;
+        this.ctx.shadowBlur = 10;
+        this.ctx.shadowColor = `rgb(${r}, ${g}, ${b})`;
+        
+        // Calculate curve based on neighboring segments
+        let radius = size / 2;
+        
+        // Make body segments slightly oval for snake-like appearance
+        this.ctx.beginPath();
+        
+        // Determine if segment is in a curve
+        if (prevSegment && nextSegment) {
+            const dxPrev = segment.x - prevSegment.x;
+            const dyPrev = segment.y - prevSegment.y;
+            const dxNext = nextSegment.x - segment.x;
+            const dyNext = nextSegment.y - segment.y;
+            
+            // If changing direction, make more rounded
+            if (dxPrev !== dxNext || dyPrev !== dyNext) {
+                radius = size / 1.8;
+            }
+        }
+        
+        // Draw rounded rectangle for body segment
+        this.ctx.roundRect(x, y, size, size, radius);
+        this.ctx.fill();
+        
+        // Add scale pattern (optional snake texture)
+        if (index % 2 === 0) {
+            this.ctx.fillStyle = `rgba(0, 243, 255, 0.3)`;
+            this.ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+        }
+        
+        this.ctx.restore();
+    }
+    
+    drawSnakeTail(x, y, size, tail, prevSegment) {
+        this.ctx.save();
+        
+        // Tail color (darker)
+        this.ctx.fillStyle = '#0044cc';
+        this.ctx.shadowBlur = 8;
+        this.ctx.shadowColor = '#0044cc';
+        
+        // Draw tail (pointed shape)
+        this.ctx.beginPath();
+        
+        if (prevSegment) {
+            const dx = tail.x - prevSegment.x;
+            const dy = tail.y - prevSegment.y;
+            
+            // Point tail in the opposite direction of movement
+            if (dx === 1) { // Moving right, tail points left
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x, y + size);
+                this.ctx.lineTo(x + size/2, y + size/2);
+            } else if (dx === -1) { // Moving left, tail points right
+                this.ctx.moveTo(x + size, y);
+                this.ctx.lineTo(x + size, y + size);
+                this.ctx.lineTo(x + size/2, y + size/2);
+            } else if (dy === 1) { // Moving down, tail points up
+                this.ctx.moveTo(x, y);
+                this.ctx.lineTo(x + size, y);
+                this.ctx.lineTo(x + size/2, y + size/2);
+            } else { // Moving up, tail points down
+                this.ctx.moveTo(x, y + size);
+                this.ctx.lineTo(x + size, y + size);
+                this.ctx.lineTo(x + size/2, y + size/2);
+            }
+        } else {
+            // Fallback: simple rectangle
+            this.ctx.roundRect(x, y, size, size, size/4);
+        }
+        
+        this.ctx.closePath();
+        this.ctx.fill();
+        
+        this.ctx.restore();
     }
     
     drawFood() {
